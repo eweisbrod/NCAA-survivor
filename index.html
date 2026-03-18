@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Survivor Pool — March Madness 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #06060b;
+    --surface: rgba(255,255,255,0.022);
+    --border: rgba(255,255,255,0.05);
+    --orange: #ff8c00;
+    --orange-dim: rgba(255,140,0,0.12);
+    --green: #3ddc84;
+    --green-dim: rgba(61,220,132,0.08);
+    --red: #ff5252;
+    --red-dim: rgba(255,82,82,0.08);
+    --yellow: #ffcc44;
+    --yellow-dim: rgba(255,204,68,0.06);
+    --text: #e8e8f0;
+    --text-dim: rgba(255,255,255,0.35);
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Oswald', sans-serif;
+    --east: #4a8fe7;
+    --west: #c56cf0;
+    --midwest: #3ddc84;
+    --south: #ff5252;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: var(--mono); cursor: pointer; }
+  input { font-family: var(--mono); }
+
+  /* ── Login ── */
+  .login-wrap {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(255,140,0,0.04) 0%, transparent 60%), var(--bg);
+  }
+  .login-card { max-width: 380px; width: 100%; text-align: center; }
+  .login-ball { font-size: 52px; margin-bottom: 8px; filter: drop-shadow(0 0 20px rgba(255,120,0,0.2)); }
+  .login-title {
+    font-family: var(--display); font-size: 32px; font-weight: 700;
+    letter-spacing: 4px; color: var(--orange); text-transform: uppercase;
+  }
+  .login-sub {
+    font-size: 10px; letter-spacing: 5px; color: var(--text-dim); margin-bottom: 32px;
+    text-transform: uppercase;
+  }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px;
+  }
+  .login-label { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 14px; text-transform: uppercase; }
+  .login-input {
+    width: 100%; padding: 12px 14px; font-size: 15px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,140,0,0.2);
+    border-radius: 8px; color: var(--text); outline: none;
+    transition: border-color 0.2s;
+  }
+  .login-input:focus { border-color: var(--orange); }
+  .login-btn {
+    width: 100%; margin-top: 14px; padding: 13px 0; font-size: 13px;
+    font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    background: var(--orange); color: #000; border: none; border-radius: 8px;
+    transition: transform 0.1s, opacity 0.1s;
+  }
+  .login-btn:hover { opacity: 0.9; }
+  .login-btn:active { transform: scale(0.98); }
+  .login-players { margin-top: 20px; font-size: 10px; color: var(--text-dim); line-height: 1.7; }
+
+  /* ── Header ── */
+  .header {
+    padding: 14px 16px 10px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-title { font-family: var(--display); font-size: 16px; font-weight: 700; color: var(--orange); letter-spacing: 3px; }
+  .header-sub { font-size: 9px; color: var(--text-dim); }
+  .header-btns { display: flex; gap: 5px; }
+  .hbtn {
+    padding: 6px 10px; font-size: 8px; letter-spacing: 1.5px; font-weight: 700;
+    background: var(--surface); color: rgba(255,255,255,0.6);
+    border: 1px solid var(--border); border-radius: 5px;
+    transition: all 0.15s;
+  }
+  .hbtn:hover { border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); }
+  .hbtn.active { background: var(--orange); color: #000; border-color: var(--orange); }
+  .fetch-time { padding: 1px 16px; font-size: 8px; color: var(--text-dim); opacity: 0.5; }
+
+  /* ── Day Tabs ── */
+  .day-scroll {
+    display: flex; gap: 4px; padding: 10px 14px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .day-scroll::-webkit-scrollbar { display: none; }
+  .day-tab {
+    padding: 8px 11px; min-width: 62px; flex-shrink: 0;
+    border: 2px solid var(--border); border-radius: 8px;
+    background: transparent; color: var(--text); text-align: center;
+    transition: all 0.15s;
+  }
+  .day-tab:hover:not(.active) { border-color: rgba(255,255,255,0.12); }
+  .day-tab.active { border-color: var(--orange); background: var(--orange-dim); color: var(--orange); }
+  .day-tab.has-won { border-color: rgba(61,220,132,0.4); }
+  .day-tab.has-lost { border-color: rgba(255,82,82,0.4); }
+  .day-tab.has-pick { border-color: rgba(255,204,68,0.3); }
+  .day-tab.dim { opacity: 0.3; }
+  .day-label { font-size: 10px; font-weight: 700; }
+  .day-round { font-size: 7px; opacity: 0.4; letter-spacing: 1px; margin-top: 1px; }
+  .day-pick-tag {
+    font-size: 7px; margin-top: 4px; padding: 1px 5px; border-radius: 3px;
+    max-width: 68px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: inline-block;
+  }
+
+  /* ── Pick Banner ── */
+  .pick-banner {
+    margin: 0 14px 6px; padding: 9px 13px; border-radius: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .pick-banner-label { font-size: 8px; color: var(--text-dim); letter-spacing: 2px; }
+  .pick-banner-team { font-size: 15px; font-weight: 700; }
+  .change-btn {
+    padding: 4px 10px; font-size: 8px; letter-spacing: 1px;
+    background: var(--surface); color: var(--text-dim);
+    border: 1px solid var(--border); border-radius: 4px;
+    transition: border-color 0.15s;
+  }
+  .change-btn:hover { border-color: rgba(255,255,255,0.15); }
+
+  /* ── Matchup Cards ── */
+  .matchups { padding: 4px 14px 100px; }
+  .matchup-card {
+    margin-bottom: 7px; padding: 10px 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px;
+    animation: fadeSlide 0.2s ease both;
+  }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .matchup-card:nth-child(2) { animation-delay: 0.02s; }
+  .matchup-card:nth-child(3) { animation-delay: 0.04s; }
+  .matchup-card:nth-child(4) { animation-delay: 0.06s; }
+  .matchup-card:nth-child(5) { animation-delay: 0.08s; }
+  .matchup-meta {
+    display: flex; justify-content: space-between; margin-bottom: 6px; padding: 0 2px;
+  }
+  .matchup-region { font-size: 8px; letter-spacing: 2px; font-weight: 700; }
+  .matchup-time { font-size: 8px; color: var(--text-dim); }
+  .matchup-row { display: flex; align-items: center; gap: 6px; }
+  .vs { font-size: 8px; font-weight: 800; letter-spacing: 2px; opacity: 0.15; min-width: 26px; text-align: center; flex-shrink: 0; }
+
+  /* ── Team Button ── */
+  .team-btn {
+    flex: 1; padding: 11px 12px; border: 1px solid var(--border);
+    border-radius: 7px; background: rgba(255,255,255,0.02);
+    color: var(--text); text-align: left;
+    display: flex; align-items: center; gap: 8px;
+    transition: all 0.12s;
+  }
+  .team-btn:hover:not(.disabled):not(.tbd) { border-color: rgba(255,255,255,0.15); }
+  .team-btn:active:not(.disabled) { transform: scale(0.98); }
+  .team-btn.picked { border-color: var(--east); background: rgba(74,143,231,0.1); color: var(--east); }
+  .team-btn.lost { background: var(--red-dim); border-color: rgba(255,82,82,0.12); color: var(--red); }
+  .team-btn.used { opacity: 0.3; cursor: not-allowed; }
+  .team-btn.disabled { cursor: not-allowed; }
+  .team-btn.tbd { opacity: 0.12; cursor: default; }
+  .team-seed { font-size: 9px; opacity: 0.4; font-weight: 800; min-width: 14px; }
+  .team-name { font-size: 12px; font-weight: 600; flex: 1; }
+  .team-name.struck { text-decoration: line-through; }
+  .team-badge { font-size: 8px; letter-spacing: 1px; opacity: 0.5; }
+
+  /* ── Board ── */
+  .board-wrap { padding: 12px; overflow-x: auto; }
+  .board { display: grid; gap: 1px; font-size: 10px; }
+  .b-hdr {
+    padding: 7px; background: rgba(255,255,255,0.015);
+    font-size: 8px; letter-spacing: 1px; color: var(--text-dim); text-align: center;
+  }
+  .b-cell { padding: 7px 5px; display: flex; align-items: center; font-size: 9px; }
+  .b-cell.center { text-align: center; justify-content: center; }
+
+  /* ── TBD placeholder ── */
+  .tbd-slot {
+    flex: 1; padding: 11px 12px; text-align: center; font-size: 11px;
+    border: 1px dashed rgba(255,255,255,0.05); border-radius: 6px;
+    color: rgba(255,255,255,0.12);
+  }
+  .tbd-msg { text-align: center; padding: 40px 20px; opacity: 0.2; font-size: 11px; letter-spacing: 2px; }
+
+  /* ── Eliminated overlay ── */
+  .elim-banner {
+    margin: 8px 14px 0; padding: 10px 14px; border-radius: 8px;
+    background: var(--red-dim); border: 1px solid rgba(255,82,82,0.15);
+    text-align: center; font-size: 10px; color: var(--red); letter-spacing: 1px;
+  }
+
+  /* Responsive tweaks */
+  @media (max-width: 400px) {
+    .team-name { font-size: 11px; }
+    .team-btn { padding: 9px 10px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<!-- Firebase SDK (compat for simplicity) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+// ─── Firebase Init ───────────────────────────────────────────────────────────
+firebase.initializeApp({
+  databaseURL: "https://ncaa-survivor-default-rtdb.firebaseio.com"
+});
+const db = firebase.database();
+
+// ─── Tournament Data ─────────────────────────────────────────────────────────
+const FF_DEFAULTS = {
+  "UMBC/Howard": "Howard",
+  "NC State/Texas": "Texas",
+  "SMU/Miami (OH)": "TBD",
+  "Prairie View A&M/Lehigh": "TBD"
+};
+
+const DAYS = [
+  { id:"thu-r1", label:"Thu 3/19", date:"2026-03-19", round:"Round 1", games:[
+    {h:{s:8,n:"Ohio State"},l:{s:9,n:"TCU"},t:"12:15p",r:"East"},
+    {h:{s:4,n:"Nebraska"},l:{s:13,n:"Troy"},t:"12:40p",r:"South"},
+    {h:{s:6,n:"Louisville"},l:{s:11,n:"South Florida"},t:"1:30p",r:"East"},
+    {h:{s:5,n:"Wisconsin"},l:{s:12,n:"High Point"},t:"1:50p",r:"West"},
+    {h:{s:1,n:"Duke"},l:{s:16,n:"Siena"},t:"2:50p",r:"East"},
+    {h:{s:5,n:"Vanderbilt"},l:{s:12,n:"McNeese"},t:"3:15p",r:"South"},
+    {h:{s:3,n:"Michigan State"},l:{s:14,n:"North Dakota St"},t:"4:05p",r:"East"},
+    {h:{s:4,n:"Arkansas"},l:{s:13,n:"Hawaii"},t:"4:25p",r:"West"},
+    {h:{s:6,n:"North Carolina"},l:{s:11,n:"VCU"},t:"6:50p",r:"South"},
+    {h:{s:1,n:"Michigan"},l:{s:16,n:"Howard"},t:"7:10p",r:"Midwest"},
+    {h:{s:6,n:"BYU"},l:{s:11,n:"Texas"},t:"7:25p",r:"West"},
+    {h:{s:7,n:"Saint Mary's"},l:{s:10,n:"Texas A&M"},t:"7:35p",r:"South"},
+    {h:{s:3,n:"Illinois"},l:{s:14,n:"Penn"},t:"9:25p",r:"South"},
+    {h:{s:8,n:"Georgia"},l:{s:9,n:"Saint Louis"},t:"9:45p",r:"Midwest"},
+    {h:{s:3,n:"Gonzaga"},l:{s:14,n:"Kennesaw St"},t:"10:00p",r:"West"},
+    {h:{s:2,n:"Houston"},l:{s:15,n:"Idaho"},t:"10:10p",r:"South"},
+  ]},
+  { id:"fri-r1", label:"Fri 3/20", date:"2026-03-20", round:"Round 1", games:[
+    {h:{s:7,n:"Kentucky"},l:{s:10,n:"Santa Clara"},t:"12:15p",r:"Midwest"},
+    {h:{s:5,n:"Texas Tech"},l:{s:12,n:"Akron"},t:"12:40p",r:"Midwest"},
+    {h:{s:1,n:"Arizona"},l:{s:16,n:"LIU"},t:"1:35p",r:"West"},
+    {h:{s:3,n:"Virginia"},l:{s:14,n:"Wright State"},t:"1:50p",r:"Midwest"},
+    {h:{s:2,n:"Iowa State"},l:{s:15,n:"Tennessee St"},t:"2:50p",r:"Midwest"},
+    {h:{s:4,n:"Alabama"},l:{s:13,n:"Hofstra"},t:"3:15p",r:"Midwest"},
+    {h:{s:8,n:"Villanova"},l:{s:9,n:"Utah State"},t:"4:10p",r:"West"},
+    {h:{s:6,n:"Tennessee"},l:{s:11,n:"$FF:SMU/Miami (OH)"},t:"4:25p",r:"Midwest"},
+    {h:{s:8,n:"Clemson"},l:{s:9,n:"Iowa"},t:"6:50p",r:"South"},
+    {h:{s:5,n:"St. John's"},l:{s:12,n:"UNI"},t:"7:10p",r:"East"},
+    {h:{s:7,n:"UCLA"},l:{s:10,n:"UCF"},t:"7:25p",r:"East"},
+    {h:{s:2,n:"Purdue"},l:{s:15,n:"Queens"},t:"7:35p",r:"West"},
+    {h:{s:1,n:"Florida"},l:{s:16,n:"$FF:Prairie View A&M/Lehigh"},t:"9:25p",r:"South"},
+    {h:{s:4,n:"Kansas"},l:{s:13,n:"Cal Baptist"},t:"9:45p",r:"East"},
+    {h:{s:2,n:"UConn"},l:{s:15,n:"Furman"},t:"10:00p",r:"East"},
+    {h:{s:7,n:"Miami (FL)"},l:{s:10,n:"Missouri"},t:"10:10p",r:"West"},
+  ]},
+  { id:"sat-r2", label:"Sat 3/21", date:"2026-03-21", round:"Round 2", games:[] },
+  { id:"sun-r2", label:"Sun 3/22", date:"2026-03-22", round:"Round 2", games:[] },
+  { id:"thu-s16", label:"Thu 3/26", date:"2026-03-26", round:"Sweet 16", games:[] },
+  { id:"fri-s16", label:"Fri 3/27", date:"2026-03-27", round:"Sweet 16", games:[] },
+  { id:"sat-e8", label:"Sat 3/28", date:"2026-03-28", round:"Elite 8", games:[] },
+  { id:"sun-e8", label:"Sun 3/29", date:"2026-03-29", round:"Elite 8", games:[] },
+  { id:"sat-ff", label:"Sat 4/4", date:"2026-04-04", round:"Final Four", games:[] },
+  { id:"mon-ch", label:"Mon 4/6", date:"2026-04-06", round:"Title Game", games:[] },
+];
+
+const R2_SAT = [
+  {a:["Duke","Siena"],b:["Ohio State","TCU"],r:"East"},
+  {a:["Louisville","South Florida"],b:["Michigan State","North Dakota St"],r:"East"},
+  {a:["Nebraska","Troy"],b:["Vanderbilt","McNeese"],r:"South"},
+  {a:["North Carolina","VCU"],b:["Illinois","Penn"],r:"South"},
+  {a:["Wisconsin","High Point"],b:["Arkansas","Hawaii"],r:"West"},
+  {a:["BYU","Texas"],b:["Gonzaga","Kennesaw St"],r:"West"},
+  {a:["Michigan","Howard"],b:["Georgia","Saint Louis"],r:"Midwest"},
+  {a:["Saint Mary's","Texas A&M"],b:["Houston","Idaho"],r:"South"},
+];
+const R2_SUN = [
+  {a:["Kentucky","Santa Clara"],b:["Virginia","Wright State"],r:"Midwest"},
+  {a:["Texas Tech","Akron"],b:["Alabama","Hofstra"],r:"Midwest"},
+  {a:["Iowa State","Tennessee St"],b:["Tennessee","$FF:SMU/Miami (OH)"],r:"Midwest"},
+  {a:["St. John's","UNI"],b:["Kansas","Cal Baptist"],r:"East"},
+  {a:["UCLA","UCF"],b:["UConn","Furman"],r:"East"},
+  {a:["Arizona","LIU"],b:["Villanova","Utah State"],r:"West"},
+  {a:["Miami (FL)","Missouri"],b:["Purdue","Queens"],r:"West"},
+  {a:["Clemson","Iowa"],b:["Florida","$FF:Prairie View A&M/Lehigh"],r:"South"},
+];
+
+const S16_THU = [
+  {a:R2_SAT[2],b:R2_SAT[3],r:"South"},
+  {a:R2_SAT[7],b:R2_SUN[7],r:"South"},
+  {a:R2_SAT[4],b:R2_SAT[5],r:"West"},
+  {a:R2_SUN[5],b:R2_SUN[6],r:"West"},
+];
+const S16_FRI = [
+  {a:R2_SAT[6],b:R2_SUN[0],r:"Midwest"},
+  {a:R2_SUN[1],b:R2_SUN[2],r:"Midwest"},
+  {a:R2_SAT[0],b:R2_SAT[1],r:"East"},
+  {a:R2_SUN[3],b:R2_SUN[4],r:"East"},
+];
+
+const REGION_COLORS = { East:"var(--east)", West:"var(--west)", Midwest:"var(--midwest)", South:"var(--south)" };
+
+const ALIASES = {
+  "michigan st.":"Michigan State","michigan st":"Michigan State","michigan state":"Michigan State",
+  "north dakota st.":"North Dakota St","n. dakota st.":"North Dakota St","north dakota state":"North Dakota St",
+  "kennesaw st.":"Kennesaw St","kennesaw state":"Kennesaw St",
+  "tennessee st.":"Tennessee St","tennessee state":"Tennessee St",
+  "ohio st.":"Ohio State","ohio state":"Ohio State",
+  "iowa st.":"Iowa State","iowa state":"Iowa State",
+  "utah st.":"Utah State","utah state":"Utah State",
+  "cal baptist":"Cal Baptist","california baptist":"Cal Baptist","cal. baptist":"Cal Baptist",
+  "st. john's":"St. John's","saint john's":"St. John's","st john's":"St. John's",
+  "saint mary's":"Saint Mary's","st. mary's":"Saint Mary's",
+  "saint louis":"Saint Louis","st. louis":"Saint Louis",
+  "south fla.":"South Florida","usf":"South Florida","south florida":"South Florida",
+  "n. carolina":"North Carolina","unc":"North Carolina","north carolina":"North Carolina",
+  "miami (fl)":"Miami (FL)","miami (fla.)":"Miami (FL)",
+  "miami (oh)":"Miami (OH)","miami ohio":"Miami (OH)",
+  "liu":"LIU","long island":"LIU","long island university":"LIU",
+  "prairie view":"Prairie View A&M","prairie view a&m":"Prairie View A&M","pvamu":"Prairie View A&M",
+  "n.c. state":"NC State","nc state":"NC State",
+  "wright st.":"Wright State","wright state":"Wright State",
+  "texas a&m":"Texas A&M",
+  "mcneese":"McNeese","mcneese st.":"McNeese","mcneese state":"McNeese",
+  "northern iowa":"UNI","uni":"UNI","n. iowa":"UNI",
+  "queens":"Queens","queens (nc)":"Queens",
+  "high point":"High Point",
+  "hawai'i":"Hawaii","hawaii":"Hawaii","hawai\u2018i":"Hawaii",
+  "byu":"BYU","ucf":"UCF","vcu":"VCU","smu":"SMU","umbc":"UMBC",
+};
+
+// Collect all team names
+const ALL_TEAMS = new Set();
+DAYS.forEach(d => d.games.forEach(g => {
+  [g.h.n, g.l.n].forEach(n => { if (n && !n.startsWith("$")) ALL_TEAMS.add(n); });
+}));
+Object.keys(FF_DEFAULTS).forEach(k => k.split("/").forEach(t => ALL_TEAMS.add(t)));
+[...R2_SAT, ...R2_SUN].forEach(p => [...p.a,...p.b].forEach(t => { if (!t.startsWith("$")) ALL_TEAMS.add(t); }));
+const TEAM_LIST = [...ALL_TEAMS];
+
+function matchTeam(api) {
+  if (!api) return null;
+  const n = api.toLowerCase().trim();
+  const exact = TEAM_LIST.find(t => t.toLowerCase() === n);
+  if (exact) return exact;
+  if (ALIASES[n]) return ALIASES[n];
+  return TEAM_LIST.find(t => n.includes(t.toLowerCase()) || t.toLowerCase().includes(n)) || null;
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let state = {
+  player: localStorage.getItem("survivor-player") || "",
+  players: [],
+  picks: {},
+  results: {},
+  ff: { ...FF_DEFAULTS },
+  dayIdx: 0,
+  board: false,
+  fetchTime: null,
+  loading: true,
+};
+
+// ─── Firebase listeners ──────────────────────────────────────────────────────
+db.ref("players").on("value", snap => {
+  state.players = snap.val() || [];
+  render();
+});
+db.ref("picks").on("value", snap => {
+  state.picks = snap.val() || {};
+  render();
+});
+db.ref("results").on("value", snap => {
+  state.results = snap.val() || {};
+  render();
+});
+db.ref("ff").on("value", snap => {
+  state.ff = { ...FF_DEFAULTS, ...(snap.val() || {}) };
+  render();
+});
+
+// Mark loading done after first data load
+db.ref("players").once("value", () => {
+  state.loading = false;
+  const today = new Date().toISOString().slice(0,10);
+  let i = DAYS.findIndex(d => d.date >= today);
+  state.dayIdx = i >= 0 ? i : DAYS.length - 1;
+  render();
+  fetchScores();
+});
+
+// ─── Actions ─────────────────────────────────────────────────────────────────
+function joinPool(name) {
+  name = name.trim();
+  if (!name) return;
+  state.player = name;
+  localStorage.setItem("survivor-player", name);
+  if (!state.players.includes(name)) {
+    const np = [...state.players, name];
+    db.ref("players").set(np);
+  }
+  render();
+}
+
+function makePick(team, dayId) {
+  if (!state.player || team === "TBD") return;
+  db.ref("picks/" + state.player + "/" + dayId).set(team);
+}
+
+function clearPick(dayId) {
+  if (!state.player) return;
+  db.ref("picks/" + state.player + "/" + dayId).remove();
+}
+
+function logout() {
+  state.player = "";
+  localStorage.removeItem("survivor-player");
+  render();
+}
+
+// ─── Score Fetching ──────────────────────────────────────────────────────────
+async function fetchScores() {
+  const today = new Date().toISOString().slice(0,10);
+  const dates = [...new Set([
+    "2026-03-17","2026-03-18",
+    ...DAYS.filter(d => d.date <= today).map(d => d.date)
+  ])].filter(d => d <= today);
+
+  let changed = false;
+  const nr = { ...state.results };
+  const nf = { ...state.ff };
+
+  for (const dt of dates) {
+    try {
+      const [y,m] = dt.split("-");
+      const resp = await fetch("https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1/" + y + "/" + m.replace(/^0/,""));
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      for (const g of (data?.games || [])) {
+        const gm = g?.game;
+        if (!gm || gm.startDate?.slice(0,10) !== dt || gm.gameState !== "final") continue;
+        const hs = parseInt(gm.home?.score||"0"), as_ = parseInt(gm.away?.score||"0");
+        const wn = hs > as_ ? (gm.home?.names?.short||gm.home?.names?.full) : (gm.away?.names?.short||gm.away?.names?.full);
+        const ln = hs > as_ ? (gm.away?.names?.short||gm.away?.names?.full) : (gm.home?.names?.short||gm.home?.names?.full);
+        const mw = matchTeam(wn), ml = matchTeam(ln);
+        if (mw && nr[mw] !== "won") { nr[mw] = "won"; changed = true; }
+        if (ml && nr[ml] !== "lost") { nr[ml] = "lost"; changed = true; }
+        for (const [key,val] of Object.entries(nf)) {
+          if (val === "TBD" && mw && key.split("/").includes(mw)) { nf[key] = mw; changed = true; }
+        }
+      }
+    } catch(e) { console.error("Score fetch error:", e); }
+  }
+
+  if (changed) {
+    const cleanResults = {};
+    for (const [k,v] of Object.entries(nr)) { if (v) cleanResults[k] = v; }
+    db.ref("results").set(cleanResults);
+    const cleanFf = {};
+    for (const [k,v] of Object.entries(nf)) { if (v) cleanFf[k] = v; }
+    db.ref("ff").set(cleanFf);
+  }
+  state.fetchTime = new Date().toLocaleTimeString();
+  render();
+}
+
+// ─── Dynamic Round Building ──────────────────────────────────────────────────
+function resolveFF(name) {
+  if (!name || !name.startsWith("$FF:")) return name;
+  return state.ff[name.slice(4)] || "TBD";
+}
+
+function winnerOf(pair) {
+  return pair.map(resolveFF).find(t => state.results[t] === "won") || null;
+}
+
+function buildDays() {
+  const days = DAYS.map(d => ({
+    ...d,
+    games: d.games.map(g => ({
+      h: { s: g.h.s, n: resolveFF(g.h.n) },
+      l: { s: g.l.s, n: resolveFF(g.l.n) },
+      t: g.t, r: g.r
+    }))
+  }));
+
+  // R2 Saturday
+  const si = days.findIndex(d => d.id === "sat-r2");
+  if (si >= 0) days[si].games = R2_SAT.map(p => ({
+    h:{s:null,n:winnerOf(p.a)||"TBD"}, l:{s:null,n:winnerOf(p.b)||"TBD"}, r:p.r, t:""
+  }));
+
+  // R2 Sunday
+  const ui = days.findIndex(d => d.id === "sun-r2");
+  if (ui >= 0) days[ui].games = R2_SUN.map(p => ({
+    h:{s:null,n:winnerOf(p.a.map(resolveFF))||"TBD"}, l:{s:null,n:winnerOf(p.b.map(resolveFF))||"TBD"}, r:p.r, t:""
+  }));
+
+  // For Sweet 16+, show TBD placeholders
+  const placeholders = {
+    "thu-s16": 4, "fri-s16": 4, "sat-e8": 2, "sun-e8": 2, "sat-ff": 2, "mon-ch": 1
+  };
+  for (const [id, n] of Object.entries(placeholders)) {
+    const idx = days.findIndex(d => d.id === id);
+    if (idx >= 0 && days[idx].games.length === 0) {
+      days[idx].games = Array.from({length:n}, () => ({
+        h:{s:null,n:"TBD"}, l:{s:null,n:"TBD"}, r:"", t:""
+      }));
+    }
+  }
+
+  return days;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function isElim(p) { return Object.values(state.picks[p]||{}).some(t => state.results[t]==="lost"); }
+function winCount(p) { return Object.values(state.picks[p]||{}).filter(t => state.results[t]==="won").length; }
+function esc(s) { const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+function render() {
+  const app = document.getElementById("app");
+  if (state.loading) {
+    app.innerHTML = '<div class="login-wrap"><div style="text-align:center"><div style="font-size:48px">\u{1F3C0}</div><div style="font-size:11px;letter-spacing:3px;opacity:0.3;margin-top:12px">LOADING...</div></div></div>';
+    return;
+  }
+
+  if (!state.player) {
+    const pList = state.players.length > 0
+      ? '<div class="login-players">' + state.players.length + ' player' + (state.players.length!==1?"s":"") + ": " + esc(state.players.join(", ")) + "</div>" : "";
+    app.innerHTML =
+      '<div class="login-wrap">' +
+        '<div class="login-card">' +
+          '<div class="login-ball">\u{1F3C0}</div>' +
+          '<h1 class="login-title">Survivor Pool</h1>' +
+          '<div class="login-sub">March Madness 2026</div>' +
+          '<div class="login-box">' +
+            '<div class="login-label">Enter your name to join</div>' +
+            '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
+            '<button class="login-btn" id="joinBtn">JOIN POOL</button>' +
+            pList +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    const inp = document.getElementById("nameInput");
+    const btn = document.getElementById("joinBtn");
+    btn.onclick = () => joinPool(inp.value);
+    inp.onkeydown = (e) => { if (e.key==="Enter") joinPool(inp.value); };
+    return;
+  }
+
+  const days = buildDays();
+  const myPicks = state.picks[state.player] || {};
+  const usedTeams = Object.values(myPicks);
+  const day = days[state.dayIdx];
+  const dayPick = day ? myPicks[day.id] : null;
+  const elim = isElim(state.player);
+  const w = winCount(state.player);
+
+  let html = "";
+
+  // Header
+  html += '<div class="header">' +
+    '<div class="header-left">' +
+      '<span style="font-size:20px">\u{1F3C0}</span>' +
+      '<div>' +
+        '<div class="header-title">SURVIVOR POOL</div>' +
+        '<div class="header-sub">' + esc(state.player) +
+          (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
+          (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="header-btns">' +
+      '<button class="hbtn' + (state.board?" active":"") + '" id="boardBtn">BOARD</button>' +
+      '<button class="hbtn" id="fetchBtn">\u21BB</button>' +
+      '<button class="hbtn" id="logoutBtn">SWITCH</button>' +
+    '</div>' +
+  '</div>';
+  if (state.fetchTime) html += '<div class="fetch-time">Scores: ' + state.fetchTime + '</div>';
+
+  if (state.board) {
+    // Board view
+    const cols = days.length;
+    html += '<div class="board-wrap"><div style="min-width:' + (cols*85+130) + 'px">' +
+      '<div class="board" style="grid-template-columns:120px repeat(' + cols + ',minmax(80px,1fr))">' +
+      '<div class="b-hdr" style="text-align:left;font-weight:700">PLAYER</div>';
+    days.forEach(d => {
+      html += '<div class="b-hdr"><div style="font-weight:700;font-size:9px">' + d.label + '</div><div style="font-size:7px;opacity:0.4">' + d.round + '</div></div>';
+    });
+    state.players.forEach(p => {
+      const pp = state.picks[p] || {};
+      const el = isElim(p);
+      html += '<div class="b-cell" style="font-weight:700;color:' + (el?"var(--red)":"var(--text)") + ';background:' + (el?"var(--red-dim)":"var(--surface)") + '">' + (el?"\u2620\uFE0F ":"") + esc(p) + ' <span style="font-size:8px;opacity:0.3">(' + winCount(p) + 'W)</span></div>';
+      days.forEach(d => {
+        const t = pp[d.id];
+        const r = t ? state.results[t] : null;
+        const bg = r==="won"?"var(--green-dim)":r==="lost"?"var(--red-dim)":"var(--surface)";
+        const c = r==="won"?"var(--green)":r==="lost"?"var(--red)":"var(--text-dim)";
+        const dec = r==="lost"?"text-decoration:line-through":"";
+        html += '<div class="b-cell center" style="background:' + bg + ';color:' + c + ';font-size:9px"><span style="' + dec + '">' + (t?esc(t):'<span style="opacity:0.12">\u2014</span>') + '</span></div>';
+      });
+    });
+    html += '</div></div></div>';
+  } else {
+    // Day tabs
+    html += '<div class="day-scroll">';
+    days.forEach((d, i) => {
+      const p = myPicks[d.id];
+      const r = p ? state.results[p] : null;
+      const act = i === state.dayIdx;
+      const hasGames = d.games.some(g => g.h.n !== "TBD" || g.l.n !== "TBD");
+      let cls = "day-tab";
+      if (act) cls += " active";
+      else if (r==="won") cls += " has-won";
+      else if (r==="lost") cls += " has-lost";
+      else if (p) cls += " has-pick";
+      if (!hasGames && !act) cls += " dim";
+      let pickTag = "";
+      if (p) {
+        const bg = r==="lost"?"var(--red-dim)":r==="won"?"var(--green-dim)":"var(--yellow-dim)";
+        const c = r==="lost"?"var(--red)":r==="won"?"var(--green)":"var(--yellow)";
+        const dec = r==="lost"?"text-decoration:line-through;":"";
+        pickTag = '<div class="day-pick-tag" style="background:' + bg + ';color:' + c + ';' + dec + '">' + esc(p) + '</div>';
+      }
+      html += '<button class="' + cls + '" data-day="' + i + '"><div class="day-label">' + d.label + '</div><div class="day-round">' + d.round + '</div>' + pickTag + '</button>';
+    });
+    html += '</div>';
+
+    // Eliminated banner
+    if (elim) {
+      html += '<div class="elim-banner">YOU HAVE BEEN ELIMINATED \u2014 picks are locked</div>';
+    }
+
+    // Pick banner
+    if (dayPick) {
+      const r = state.results[dayPick];
+      const bg = r==="lost"?"var(--red-dim)":r==="won"?"var(--green-dim)":"var(--yellow-dim)";
+      const bc = r==="lost"?"rgba(255,82,82,0.15)":r==="won"?"rgba(61,220,132,0.12)":"rgba(255,204,68,0.1)";
+      const c = r==="lost"?"var(--red)":r==="won"?"var(--green)":"var(--yellow)";
+      const dec = r==="lost"?"text-decoration:line-through;":"";
+      const mark = r==="won"?" \u2713":r==="lost"?" \u2717":"";
+      const changeBtn = !r && !elim ? '<button class="change-btn" id="changeBtn">CHANGE</button>' : "";
+      html += '<div class="pick-banner" style="background:' + bg + ';border:1px solid ' + bc + '">' +
+        '<div><div class="pick-banner-label">YOUR PICK</div><div class="pick-banner-team" style="color:' + c + ';' + dec + '">' + esc(dayPick) + mark + '</div></div>' + changeBtn + '</div>';
+    }
+
+    // Matchups
+    html += '<div class="matchups">';
+    if (day && day.games.length > 0) {
+      day.games.forEach((g, gi) => {
+        const hn = g.h.n, ln = g.l.n;
+        if (hn === "TBD" && ln === "TBD") {
+          html += '<div class="matchup-card"><div class="matchup-row" style="opacity:0.15"><div class="tbd-slot">TBD</div><div class="vs">VS</div><div class="tbd-slot">TBD</div></div></div>';
+          return;
+        }
+        const accent = REGION_COLORS[g.r] || "#888";
+        let meta = "";
+        if (g.r || g.t) {
+          meta = '<div class="matchup-meta">' + (g.r?'<span class="matchup-region" style="color:' + accent + '">' + g.r.toUpperCase() + '</span>':"<span></span>") + (g.t?'<span class="matchup-time">' + g.t + ' ET</span>':"") + '</div>';
+        }
+        html += '<div class="matchup-card" style="animation-delay:' + (gi * 0.02) + 's">' + meta + '<div class="matchup-row">';
+        html += teamBtn(hn, g.h.s, dayPick, usedTeams, accent, day.id, elim);
+        html += '<div class="vs">VS</div>';
+        html += teamBtn(ln, g.l.s, dayPick, usedTeams, accent, day.id, elim);
+        html += '</div></div>';
+      });
+    } else {
+      html += '<div class="tbd-msg">Matchups TBD \u2014 check back after earlier rounds</div>';
+    }
+    html += '</div>';
+  }
+
+  app.innerHTML = html;
+  bindEvents(days);
+}
+
+function teamBtn(name, seed, dayPick, usedTeams, accent, dayId, elim) {
+  if (name === "TBD") return '<div class="team-btn tbd">TBD</div>';
+
+  const picked = dayPick === name;
+  const used = usedTeams.includes(name) && !picked;
+  const lost = state.results[name] === "lost";
+  const won = state.results[name] === "won";
+  const dis = used || lost || (elim && !picked);
+
+  let cls = "team-btn";
+  if (picked) cls += " picked";
+  else if (lost) cls += " lost";
+  else if (used) cls += " used disabled";
+  if (dis && !picked && !lost) cls += " disabled";
+
+  let style = "";
+  if (picked) style = "border-color:" + accent + ";background:" + accent + "15;color:" + accent + ";";
+
+  const seedHtml = seed ? '<span class="team-seed">' + seed + '</span>' : "";
+  const nameClass = lost ? "team-name struck" : "team-name";
+  let badge = "";
+  if (picked) badge = '<span style="font-size:13px">\u2713</span>';
+  else if (won) badge = '<span style="font-size:9px;color:var(--green)">W</span>';
+  else if (lost) badge = '<span style="font-size:9px">\u2717</span>';
+  else if (used) badge = '<span class="team-badge">USED</span>';
+
+  return '<button class="' + cls + '" style="' + style + '" data-pick="' + esc(name) + '" data-day="' + dayId + '">' + seedHtml + '<span class="' + nameClass + '">' + esc(name) + '</span>' + badge + '</button>';
+}
+
+function bindEvents(days) {
+  document.getElementById("boardBtn")?.addEventListener("click", () => { state.board = !state.board; render(); });
+  document.getElementById("fetchBtn")?.addEventListener("click", fetchScores);
+  document.getElementById("logoutBtn")?.addEventListener("click", logout);
+  document.getElementById("changeBtn")?.addEventListener("click", () => { clearPick(days[state.dayIdx].id); });
+
+  document.querySelectorAll(".day-tab").forEach(el => {
+    el.addEventListener("click", () => { state.dayIdx = parseInt(el.dataset.day); render(); });
+  });
+
+  document.querySelectorAll(".team-btn[data-pick]").forEach(el => {
+    el.addEventListener("click", () => {
+      const team = el.dataset.pick;
+      const dayId = el.dataset.day;
+      if (!team || team === "TBD") return;
+      if (isElim(state.player)) return;
+      const myPicks = state.picks[state.player] || {};
+      const usedTeams = Object.values(myPicks);
+      const dayPick = myPicks[dayId];
+      if (state.results[team] === "lost") return;
+      if (usedTeams.includes(team) && dayPick !== team) return;
+      makePick(team, dayId);
+    });
+  });
+}
+
+// Auto-refresh scores every 2 minutes during active games
+setInterval(fetchScores, 120000);
+
+// Initial render
+render();
+</script>
+</body>
+</html>
