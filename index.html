@@ -436,6 +436,14 @@ function logout() {
   render();
 }
 
+function removePlayer(name) {
+  if (!confirm("Remove " + name + " from the pool? This deletes all their picks.")) return;
+  const np = state.players.filter(p => p !== name);
+  db.ref("players").set(np);
+  db.ref("picks/" + name).remove();
+  if (state.player === name) logout();
+}
+
 // ─── Score Fetching ──────────────────────────────────────────────────────────
 async function fetchScores() {
   const today = new Date().toISOString().slice(0,10);
@@ -544,8 +552,12 @@ function render() {
   }
 
   if (!state.player) {
-    const pList = state.players.length > 0
-      ? '<div class="login-players">' + state.players.length + ' player' + (state.players.length!==1?"s":"") + ": " + esc(state.players.join(", ")) + "</div>" : "";
+    let pList = "";
+    if (state.players.length > 0) {
+      pList = '<div class="login-players">' + state.players.length + ' player' + (state.players.length!==1?"s":"") + ':<br>' +
+        state.players.map(p => '<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 6px 2px 0">' + esc(p) + '<button class="remove-player-btn" data-player="' + esc(p) + '" style="background:none;border:none;color:var(--red);font-size:10px;opacity:0.5;padding:0 2px;cursor:pointer" title="Remove ' + esc(p) + '">\u2717</button></span>').join("") +
+      "</div>";
+    }
     app.innerHTML =
       '<div class="login-wrap">' +
         '<div class="login-card">' +
@@ -564,6 +576,9 @@ function render() {
     const btn = document.getElementById("joinBtn");
     btn.onclick = () => joinPool(inp.value);
     inp.onkeydown = (e) => { if (e.key==="Enter") joinPool(inp.value); };
+    document.querySelectorAll(".remove-player-btn").forEach(el => {
+      el.addEventListener("click", () => removePlayer(el.dataset.player));
+    });
     return;
   }
 
