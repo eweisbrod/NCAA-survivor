@@ -456,54 +456,20 @@ async function fetchScores() {
   const nr = { ...state.results };
   const nf = { ...state.ff };
 
-  // Normalize a date string to YYYY-MM-DD for comparison
-  // Handles: "MM-DD-YYYY", "MM/DD/YYYY", "YYYY-MM-DD", epoch strings
-  function normalizeDate(d) {
-    if (!d) return "";
-    d = String(d).trim();
-    // MM-DD-YYYY or MM/DD/YYYY
-    const mdy = d.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
-    if (mdy) return mdy[3] + "-" + mdy[1].padStart(2,"0") + "-" + mdy[2].padStart(2,"0");
-    // Already YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0,10);
-    // Epoch
-    if (/^\d{10,13}$/.test(d)) return new Date(parseInt(d) * (d.length === 10 ? 1000 : 1)).toISOString().slice(0,10);
-    return d;
-  }
-
-  // Build a Set of target dates for fast lookup
-  const dateSet = new Set(dates);
-
-  // Fetch by unique months
-  const months = [...new Set(dates.map(d => { const [y,m] = d.split("-"); return y + "/" + m.replace(/^0/,""); }))];
-  for (const mo of months) {
+  // Fetch per-day (API requires YYYY/MM/DD with zero-padded months)
+  for (const dt of dates) {
+    const urlDate = dt.replace(/-/g, "/"); // "2026-03-19" -> "2026/03/19"
     try {
-      const resp = await fetch("https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1/" + mo);
-      if (!resp.ok) { console.warn("Score API returned", resp.status, "for", mo); continue; }
+      const resp = await fetch("https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1/" + urlDate);
+      if (!resp.ok) { console.warn("[Scores] API returned", resp.status, "for", urlDate); continue; }
       const data = await resp.json();
       const games = data?.games || [];
-      console.log("[Scores] Fetched " + mo + ": " + games.length + " games");
-      if (games.length > 0) {
-        const sample = games[0]?.game;
-        console.log("[Scores] Sample game:", JSON.stringify({
-          startDate: sample?.startDate,
-          gameState: sample?.gameState,
-          home: sample?.home?.names?.short,
-          away: sample?.away?.names?.short,
-          homeScore: sample?.home?.score,
-          awayScore: sample?.away?.score
-        }));
-      }
+      console.log("[Scores] Fetched " + urlDate + ": " + games.length + " games");
       for (const g of games) {
         const gm = g?.game;
         if (!gm) continue;
-        // Skip non-final games
         const gs = (gm.gameState || "").toLowerCase();
         if (gs !== "final") continue;
-        // Normalize the API date and check against our target dates
-        const gameDate = normalizeDate(gm.startDate);
-        if (!dateSet.has(gameDate)) continue;
-        // Determine winner/loser by score
         const hs = parseInt(gm.home?.score||"0"), as_ = parseInt(gm.away?.score||"0");
         const wn = hs > as_ ? (gm.home?.names?.short||gm.home?.names?.full) : (gm.away?.names?.short||gm.away?.names?.full);
         const ln = hs > as_ ? (gm.away?.names?.short||gm.away?.names?.full) : (gm.home?.names?.short||gm.home?.names?.full);
@@ -514,7 +480,7 @@ async function fetchScores() {
           if (val === "TBD" && mw && key.split("/").includes(mw)) { nf[key] = mw; changed = true; }
         }
       }
-    } catch(e) { console.error("Score fetch error:", e); }
+    } catch(e) { console.error("[Scores] Fetch error for", urlDate, e); }
   }
   console.log("[Scores] Changed:", changed, "Results so far:", Object.keys(nr).length, "teams");
 
@@ -603,7 +569,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v2.1</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.2</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -637,7 +603,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.1</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.2</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
