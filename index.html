@@ -376,6 +376,7 @@ let state = {
   dayIdx: 0,
   board: false,
   fetchTime: null,
+  debugLog: [],
   loading: true,
 };
 
@@ -455,6 +456,8 @@ async function fetchScores() {
   let changed = false;
   const nr = { ...state.results };
   const nf = { ...state.ff };
+  const dbg = [];
+  function log(msg) { dbg.push(msg); console.log("[Scores]", msg); }
 
   // Build set of target dates for filtering
   const dateSet = new Set(dates);
@@ -488,13 +491,20 @@ async function fetchScores() {
       const ln = hs > as_ ? (gm.away?.names?.short||gm.away?.names?.full) : (gm.home?.names?.short||gm.home?.names?.full);
       const mw = matchTeam(wn), ml = matchTeam(ln);
       if (mw || ml) matchCount++;
-      if (mw && nr[mw] !== "won") { nr[mw] = "won"; changed = true; console.log("[Scores] WIN:", mw, "(from", wn + ")"); }
-      if (ml && nr[ml] !== "lost") { nr[ml] = "lost"; changed = true; console.log("[Scores] LOSS:", ml, "(from", ln + ")"); }
+      if (mw && nr[mw] !== "won") { nr[mw] = "won"; changed = true; log("WIN: " + mw + " (API: " + wn + ")"); }
+      if (ml && nr[ml] !== "lost") { nr[ml] = "lost"; changed = true; log("LOSS: " + ml + " (API: " + ln + ")"); }
       for (const [key,val] of Object.entries(nf)) {
         if (val === "TBD" && mw && key.split("/").includes(mw)) { nf[key] = mw; changed = true; }
       }
     }
-    console.log("[Scores]", label, "- total:", games.length, "final:", finalCount, "matched:", matchCount);
+    // Log first game sample for debugging if nothing matched
+    if (matchCount === 0 && games.length > 0) {
+      const s = games[0]?.game;
+      log(label + ": " + games.length + " games, " + finalCount + " final, 0 matched. Sample: " +
+        (s ? s.home?.names?.short + " vs " + s.away?.names?.short + " state=" + s.gameState + " date=" + s.startDate : "no game obj"));
+    } else {
+      log(label + ": " + games.length + " games, " + finalCount + " final, " + matchCount + " matched");
+    }
   }
 
   // Strategy 1: Fetch by month (zero-padded) — returns all games for the month
@@ -502,26 +512,26 @@ async function fetchScores() {
   for (const mo of months) {
     try {
       const resp = await fetch("https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1/" + mo);
-      if (!resp.ok) { console.warn("[Scores] Month API returned", resp.status, "for", mo); continue; }
+      if (!resp.ok) { log("Month " + mo + ": HTTP " + resp.status); continue; }
       const data = await resp.json();
-      processGames(data?.games || [], mo);
-    } catch(e) { console.error("[Scores] Month fetch error:", mo, e); }
+      processGames(data?.games || [], "Month " + mo);
+    } catch(e) { log("Month " + mo + " ERROR: " + e.message); }
   }
 
   // Strategy 2: If nothing found, try per-day fetches as fallback
   if (!changed) {
-    console.log("[Scores] Month fetch found nothing, trying per-day...");
+    log("Month fetch found nothing, trying per-day...");
     for (const dt of dates) {
       const urlDate = dt.replace(/-/g, "/");
       try {
         const resp = await fetch("https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1/" + urlDate);
-        if (!resp.ok) continue;
+        if (!resp.ok) { log("Day " + urlDate + ": HTTP " + resp.status); continue; }
         const data = await resp.json();
-        processGames(data?.games || [], urlDate);
-      } catch(e) { console.error("[Scores] Day fetch error:", urlDate, e); }
+        processGames(data?.games || [], "Day " + urlDate);
+      } catch(e) { log("Day " + urlDate + " ERROR: " + e.message); }
     }
   }
-  console.log("[Scores] Changed:", changed, "Results so far:", Object.keys(nr).length, "teams");
+  log("Done. changed=" + changed + " results=" + Object.keys(nr).length);
 
   if (changed) {
     const cleanResults = {};
@@ -532,6 +542,7 @@ async function fetchScores() {
     db.ref("ff").set(cleanFf);
   }
   state.fetchTime = new Date().toLocaleTimeString();
+  state.debugLog = dbg;
   render();
 }
 
@@ -608,7 +619,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v2.3</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.4</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -642,7 +653,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.3</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.4</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
@@ -655,7 +666,10 @@ function render() {
       '<button class="hbtn" id="logoutBtn">SWITCH</button>' +
     '</div>' +
   '</div>';
-  if (state.fetchTime) html += '<div class="fetch-time">Scores: ' + state.fetchTime + '</div>';
+  if (state.fetchTime) {
+    html += '<div class="fetch-time">Scores: ' + state.fetchTime + '</div>';
+    if (state.debugLog.length) html += '<div style="font-size:9px;color:#888;padding:2px 8px;max-height:120px;overflow-y:auto;word-break:break-all">' + state.debugLog.map(l => '<div>' + l + '</div>').join('') + '</div>';
+  }
 
   if (state.board) {
     // Board view
