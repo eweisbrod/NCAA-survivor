@@ -456,15 +456,26 @@ async function fetchScores() {
   const nr = { ...state.results };
   const nf = { ...state.ff };
 
-  for (const dt of dates) {
+  // Convert YYYY-MM-DD to MM-DD-YYYY for API comparison
+  function toApiDate(iso) {
+    const [y,m,d] = iso.split("-");
+    return m + "-" + d + "-" + y;
+  }
+
+  // Fetch by unique months
+  const months = [...new Set(dates.map(d => { const [y,m] = d.split("-"); return y + "/" + m.replace(/^0/,""); }))];
+  for (const mo of months) {
     try {
-      const [y,m] = dt.split("-");
-      const resp = await fetch("https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1/" + y + "/" + m.replace(/^0/,""));
+      const resp = await fetch("https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1/" + mo);
       if (!resp.ok) continue;
       const data = await resp.json();
       for (const g of (data?.games || [])) {
         const gm = g?.game;
-        if (!gm || gm.startDate?.slice(0,10) !== dt || gm.gameState !== "final") continue;
+        if (!gm || gm.gameState !== "final") continue;
+        // API startDate is MM-DD-YYYY, convert our dates to match
+        const apiDate = gm.startDate;
+        const matchesDate = dates.some(d => toApiDate(d) === apiDate);
+        if (!matchesDate) continue;
         const hs = parseInt(gm.home?.score||"0"), as_ = parseInt(gm.away?.score||"0");
         const wn = hs > as_ ? (gm.home?.names?.short||gm.home?.names?.full) : (gm.away?.names?.short||gm.away?.names?.full);
         const ln = hs > as_ ? (gm.away?.names?.short||gm.away?.names?.full) : (gm.home?.names?.short||gm.home?.names?.full);
