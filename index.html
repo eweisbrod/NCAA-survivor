@@ -344,8 +344,13 @@ const ALIASES = {
   "northern iowa":"UNI","uni":"UNI","n. iowa":"UNI",
   "queens":"Queens","queens (nc)":"Queens",
   "high point":"High Point",
-  "hawai'i":"Hawaii","hawaii":"Hawaii","hawai\u2018i":"Hawaii",
+  "hawai'i":"Hawaii","hawaii":"Hawaii","hawai\u2018i":"Hawaii","hawai&#699;i":"Hawaii",
   "byu":"BYU","ucf":"UCF","vcu":"VCU","smu":"SMU","umbc":"UMBC",
+  "texas a&m":"Texas A&M","tcu":"TCU","lsu":"LSU","usc":"USC",
+  "north dakota state":"North Dakota St","san diego state":"San Diego State",
+  "florida atlantic":"Florida Atlantic","fau":"Florida Atlantic",
+  "grand canyon":"Grand Canyon","uc irvine":"UC Irvine","uc davis":"UC Davis",
+  "unc wilmington":"UNC Wilmington","unc asheville":"UNC Asheville",
 };
 
 // Collect all team names
@@ -459,77 +464,38 @@ async function fetchScores() {
   const dbg = [];
   function log(msg) { dbg.push(msg); console.log("[Scores]", msg); }
 
-  // Build set of target dates for filtering
-  const dateSet = new Set(dates);
-
-  // Normalize API date to YYYY-MM-DD
-  function normalizeDate(d) {
-    if (!d) return "";
-    d = String(d).trim();
-    // MM-DD-YYYY or MM/DD/YYYY
-    const mdy = d.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
-    if (mdy) return mdy[3] + "-" + mdy[1].padStart(2,"0") + "-" + mdy[2].padStart(2,"0");
-    // YYYY-MM-DD (possibly with time suffix)
-    if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0,10);
-    // Epoch
-    if (/^\d{10,13}$/.test(d)) return new Date(parseInt(d) * (d.length === 10 ? 1000 : 1)).toISOString().slice(0,10);
-    return d;
-  }
-
-  function processGames(games, label) {
-    let finalCount = 0, matchCount = 0;
-    for (const g of games) {
-      const gm = g?.game;
-      if (!gm) continue;
-      const gs = (gm.gameState || "").toLowerCase();
-      if (gs !== "final") continue;
-      finalCount++;
-      const gameDate = normalizeDate(gm.startDate);
-      if (!dateSet.has(gameDate)) continue;
-      const hs = parseInt(gm.home?.score||"0"), as_ = parseInt(gm.away?.score||"0");
-      const wn = hs > as_ ? (gm.home?.names?.short||gm.home?.names?.full) : (gm.away?.names?.short||gm.away?.names?.full);
-      const ln = hs > as_ ? (gm.away?.names?.short||gm.away?.names?.full) : (gm.home?.names?.short||gm.home?.names?.full);
-      const mw = matchTeam(wn), ml = matchTeam(ln);
-      if (mw || ml) matchCount++;
-      if (mw && nr[mw] !== "won") { nr[mw] = "won"; changed = true; log("WIN: " + mw + " (API: " + wn + ")"); }
-      if (ml && nr[ml] !== "lost") { nr[ml] = "lost"; changed = true; log("LOSS: " + ml + " (API: " + ln + ")"); }
-      for (const [key,val] of Object.entries(nf)) {
-        if (val === "TBD" && mw && key.split("/").includes(mw)) { nf[key] = mw; changed = true; }
-      }
-    }
-    // Log first game sample for debugging if nothing matched
-    if (matchCount === 0 && games.length > 0) {
-      const s = games[0]?.game;
-      log(label + ": " + games.length + " games, " + finalCount + " final, 0 matched. Sample: " +
-        (s ? s.home?.names?.short + " vs " + s.away?.names?.short + " state=" + s.gameState + " date=" + s.startDate : "no game obj"));
-    } else {
-      log(label + ": " + games.length + " games, " + finalCount + " final, " + matchCount + " matched");
-    }
-  }
-
-  // Strategy 1: Fetch by month (zero-padded) — returns all games for the month
-  const months = [...new Set(dates.map(d => { const [y,m] = d.split("-"); return y + "/" + m; }))];
-  for (const mo of months) {
+  // Use ESPN API (supports CORS, unlike ncaa-api.henrygd.me)
+  // groups=100 filters to NCAA tournament games only
+  const ESPN = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard";
+  for (const dt of dates) {
+    const yyyymmdd = dt.replace(/-/g, "");
     try {
-      const resp = await fetch("https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1/" + mo);
-      if (!resp.ok) { log("Month " + mo + ": HTTP " + resp.status); continue; }
+      const resp = await fetch(ESPN + "?dates=" + yyyymmdd + "&groups=100&limit=100");
+      if (!resp.ok) { log(dt + ": HTTP " + resp.status); continue; }
       const data = await resp.json();
-      processGames(data?.games || [], "Month " + mo);
-    } catch(e) { log("Month " + mo + " ERROR: " + e.message); }
-  }
-
-  // Strategy 2: If nothing found, try per-day fetches as fallback
-  if (!changed) {
-    log("Month fetch found nothing, trying per-day...");
-    for (const dt of dates) {
-      const urlDate = dt.replace(/-/g, "/");
-      try {
-        const resp = await fetch("https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1/" + urlDate);
-        if (!resp.ok) { log("Day " + urlDate + ": HTTP " + resp.status); continue; }
-        const data = await resp.json();
-        processGames(data?.games || [], "Day " + urlDate);
-      } catch(e) { log("Day " + urlDate + " ERROR: " + e.message); }
-    }
+      const events = data?.events || [];
+      let matchCount = 0;
+      for (const ev of events) {
+        const comp = ev.competitions?.[0];
+        if (!comp) continue;
+        const statusDone = ev.status?.type?.completed;
+        if (!statusDone) continue;
+        const teams = comp.competitors || [];
+        const winner = teams.find(t => t.winner);
+        const loser = teams.find(t => !t.winner);
+        if (!winner || !loser) continue;
+        const wn = winner.team?.shortDisplayName || winner.team?.displayName || "";
+        const ln = loser.team?.shortDisplayName || loser.team?.displayName || "";
+        const mw = matchTeam(wn), ml = matchTeam(ln);
+        if (mw || ml) matchCount++;
+        if (mw && nr[mw] !== "won") { nr[mw] = "won"; changed = true; log("W " + mw); }
+        if (ml && nr[ml] !== "lost") { nr[ml] = "lost"; changed = true; log("L " + ml); }
+        for (const [key,val] of Object.entries(nf)) {
+          if (val === "TBD" && mw && key.split("/").includes(mw)) { nf[key] = mw; changed = true; }
+        }
+      }
+      log(dt + ": " + events.length + " events, " + matchCount + " matched");
+    } catch(e) { log(dt + " ERR: " + e.message); }
   }
   log("Done. changed=" + changed + " results=" + Object.keys(nr).length);
 
@@ -619,7 +585,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v2.4</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.5</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -653,7 +619,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.4</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.5</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
