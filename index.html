@@ -603,7 +603,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.1</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -637,7 +637,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL</div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.1</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
