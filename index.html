@@ -265,7 +265,7 @@ const DAYS = [
     {h:{s:8,n:"Villanova"},l:{s:9,n:"Utah State"},t:"4:10p",r:"West"},
     {h:{s:6,n:"Tennessee"},l:{s:11,n:"$FF:SMU/Miami (OH)"},t:"4:25p",r:"Midwest"},
     {h:{s:8,n:"Clemson"},l:{s:9,n:"Iowa"},t:"6:50p",r:"South"},
-    {h:{s:5,n:"St. John's"},l:{s:12,n:"UNI"},t:"7:10p",r:"East"},
+    {h:{s:5,n:"St John's"},l:{s:12,n:"UNI"},t:"7:10p",r:"East"},
     {h:{s:7,n:"UCLA"},l:{s:10,n:"UCF"},t:"7:25p",r:"East"},
     {h:{s:2,n:"Purdue"},l:{s:15,n:"Queens"},t:"7:35p",r:"West"},
     {h:{s:1,n:"Florida"},l:{s:16,n:"$FF:Prairie View A&M/Lehigh"},t:"9:25p",r:"South"},
@@ -297,7 +297,7 @@ const R2_SUN = [
   {a:["Kentucky","Santa Clara"],b:["Virginia","Wright State"],r:"Midwest"},
   {a:["Texas Tech","Akron"],b:["Alabama","Hofstra"],r:"Midwest"},
   {a:["Iowa State","Tennessee St"],b:["Tennessee","$FF:SMU/Miami (OH)"],r:"Midwest"},
-  {a:["St. John's","UNI"],b:["Kansas","Cal Baptist"],r:"East"},
+  {a:["St John's","UNI"],b:["Kansas","Cal Baptist"],r:"East"},
   {a:["UCLA","UCF"],b:["UConn","Furman"],r:"East"},
   {a:["Arizona","LIU"],b:["Villanova","Utah State"],r:"West"},
   {a:["Miami (FL)","Missouri"],b:["Purdue","Queens"],r:"West"},
@@ -328,7 +328,7 @@ const ALIASES = {
   "iowa st.":"Iowa State","iowa state":"Iowa State",
   "utah st.":"Utah State","utah state":"Utah State",
   "cal baptist":"Cal Baptist","california baptist":"Cal Baptist","cal. baptist":"Cal Baptist",
-  "st. john's":"St. John's","saint john's":"St. John's","st john's":"St. John's",
+  "st. john's":"St John's","saint john's":"St John's","st john's":"St John's",
   "saint mary's":"Saint Mary's","st. mary's":"Saint Mary's",
   "saint louis":"Saint Louis","st. louis":"Saint Louis",
   "south fla.":"South Florida","usf":"South Florida","south florida":"South Florida",
@@ -540,12 +540,14 @@ async function fetchScores() {
   log("results=" + JSON.stringify(nr));
 
   if (changed) {
+    // Firebase keys cannot contain . # $ / [ ]
+    const fbKey = s => s.replace(/[.#$/\[\]]/g, "");
     const cleanResults = {};
-    for (const [k,v] of Object.entries(nr)) { if (v) cleanResults[k] = v; }
-    db.ref("results").set(cleanResults);
+    for (const [k,v] of Object.entries(nr)) { if (v) cleanResults[fbKey(k)] = v; }
+    try { await db.ref("results").set(cleanResults); } catch(e) { log("FB results err: " + e.message); }
     const cleanFf = {};
-    for (const [k,v] of Object.entries(nf)) { if (v) cleanFf[k] = v; }
-    db.ref("ff").set(cleanFf);
+    for (const [k,v] of Object.entries(nf)) { if (v) cleanFf[fbKey(k)] = v; }
+    try { await db.ref("ff").set(cleanFf); } catch(e) { log("FB ff err: " + e.message); }
   }
   } catch(e) { log("CRASH: " + e.message + " " + e.stack); }
   state.fetchTime = new Date().toLocaleTimeString();
@@ -669,7 +671,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v2.13</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.14</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -703,7 +705,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.13</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.14</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
