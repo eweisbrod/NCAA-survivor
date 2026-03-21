@@ -453,7 +453,7 @@ function removePlayer(name) {
 // ─── Score Fetching ──────────────────────────────────────────────────────────
 async function fetchScores() {
   const today = new Date().toISOString().slice(0,10);
-  const dates = DAYS.filter(d => d.date <= today).map(d => d.date);
+  const dates = [...new Set(DAYS.filter(d => d.date <= today).map(d => d.date))];
 
   let changed = false;
   const nr = { ...state.results };
@@ -471,15 +471,30 @@ async function fetchScores() {
     return mw || ml ? 1 : 0;
   }
 
-  // ESPN API — fetch all dates in parallel, no group filter (more reliable)
+  // Try ESPN and ncaa-api in parallel for maximum reliability
   const ESPN = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard";
-  const fetches = dates.map(dt => fetch(ESPN + "?dates=" + dt.replace(/-/g, "") + "&limit=200")
-    .then(r => r.ok ? r.json() : null).catch(() => null));
-  const results = await Promise.allSettled(fetches);
-  let espnOk = false;
+  const NCAA = "https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1";
+
+  // Build all fetch promises
+  const espnFetches = dates.map(dt =>
+    fetch(ESPN + "?dates=" + dt.replace(/-/g, "") + "&limit=200")
+      .then(r => { log("ESPN " + dt + ": HTTP " + r.status); return r.ok ? r.json() : null; })
+      .catch(e => { log("ESPN " + dt + " ERR: " + e.message); return null; })
+  );
+  const ncaaFetches = dates.map(dt =>
+    fetch(NCAA + "/" + dt.replace(/-/g, "/"))
+      .then(r => { log("NCAA " + dt + ": HTTP " + r.status); return r.ok ? r.json() : null; })
+      .catch(e => { log("NCAA " + dt + " ERR: " + e.message); return null; })
+  );
+
+  // Fire all fetches in parallel
+  const allResults = await Promise.all([...espnFetches, ...ncaaFetches]);
+  const espnResults = allResults.slice(0, dates.length);
+  const ncaaResults = allResults.slice(dates.length);
+
+  // Process ESPN results
   for (let i = 0; i < dates.length; i++) {
-    const data = results[i].status === "fulfilled" ? results[i].value : null;
-    const events = data?.events || [];
+    const events = espnResults[i]?.events || [];
     let mc = 0;
     for (const ev of events) {
       const comp = ev.competitions?.[0];
@@ -493,32 +508,25 @@ async function fetchScores() {
         loser.team?.shortDisplayName || loser.team?.displayName || ""
       );
     }
-    if (events.length > 0) espnOk = true;
-    log(dates[i] + ": " + (data ? events.length + "ev " + mc + "m" : "FAIL"));
+    log("ESPN " + dates[i] + ": " + events.length + "ev " + mc + "match");
   }
 
-  // Fallback: try ncaa-api if ESPN returned nothing
-  if (!espnOk) {
-    log("ESPN failed, trying ncaa-api...");
-    for (const dt of dates) {
-      try {
-        const resp = await fetch("https://ncaa-api.henrygd.me/scoreboard/basketball-men/d1/" + dt.replace(/-/g, "/"));
-        if (!resp.ok) { log(dt + " ncaa: HTTP " + resp.status); continue; }
-        const data = await resp.json();
-        let mc = 0;
-        for (const g of (data?.games || [])) {
-          const gm = g?.game;
-          if (!gm || (gm.gameState || "").toLowerCase() !== "final") continue;
-          const hs = parseInt(gm.home?.score||"0"), as_ = parseInt(gm.away?.score||"0");
-          const wn = hs > as_ ? (gm.home?.names?.short||gm.home?.names?.full) : (gm.away?.names?.short||gm.away?.names?.full);
-          const ln = hs > as_ ? (gm.away?.names?.short||gm.away?.names?.full) : (gm.home?.names?.short||gm.home?.names?.full);
-          mc += recordResult(wn, ln);
-        }
-        log(dt + " ncaa: " + (data?.games?.length||0) + "g " + mc + "m");
-      } catch(e) { log(dt + " ncaa ERR: " + e.message); }
+  // Process NCAA results (will skip teams already recorded by ESPN)
+  for (let i = 0; i < dates.length; i++) {
+    const games = ncaaResults[i]?.games || [];
+    let mc = 0;
+    for (const g of games) {
+      const gm = g?.game;
+      if (!gm || (gm.gameState || "").toLowerCase() !== "final") continue;
+      const hs = parseInt(gm.home?.score||"0"), as_ = parseInt(gm.away?.score||"0");
+      const wn = hs > as_ ? (gm.home?.names?.short||gm.home?.names?.full) : (gm.away?.names?.short||gm.away?.names?.full);
+      const ln = hs > as_ ? (gm.away?.names?.short||gm.away?.names?.full) : (gm.home?.names?.short||gm.home?.names?.full);
+      mc += recordResult(wn, ln);
     }
+    log("NCAA " + dates[i] + ": " + games.length + "g " + mc + "match");
   }
-  log("Done. changed=" + changed + " results=" + Object.keys(nr).length);
+
+  log("Done. changed=" + changed + " results=" + JSON.stringify(nr));
 
   if (changed) {
     const cleanResults = {};
@@ -647,7 +655,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v2.8</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.9</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -681,7 +689,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.8</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.9</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
@@ -696,7 +704,7 @@ function render() {
   '</div>';
   if (state.fetchTime) {
     html += '<div class="fetch-time">Scores: ' + state.fetchTime + '</div>';
-    if (state.debugLog.length) html += '<div style="font-size:9px;color:#888;padding:2px 8px;max-height:120px;overflow-y:auto;word-break:break-all">' + state.debugLog.map(l => '<div>' + l + '</div>').join('') + '</div>';
+    if (state.debugLog.length) html += '<div style="font-size:11px;color:#ffa;background:#222;padding:4px 8px;margin:4px;border-radius:4px;max-height:200px;overflow-y:auto;word-break:break-all;font-family:monospace">' + state.debugLog.map(l => '<div>' + l + '</div>').join('') + '</div>';
   }
 
   if (state.board) {
