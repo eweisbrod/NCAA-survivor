@@ -553,7 +553,9 @@ function resolveFF(name) {
 }
 
 function winnerOf(pair) {
-  return pair.map(resolveFF).find(t => state.results[t] === "won") || null;
+  const resolved = pair.map(resolveFF);
+  const w = resolved.find(t => state.results[t] === "won") || null;
+  return w;
 }
 
 function buildDays() {
@@ -660,7 +662,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v2.11</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.12</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -694,7 +696,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.11</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.12</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
@@ -710,7 +712,20 @@ function render() {
   if (state.fetchTime) {
     html += '<div class="fetch-time">Scores: ' + state.fetchTime + '</div>';
   }
-  if (state.debugLog.length) html += '<details style="margin:2px 8px"><summary style="font-size:10px;color:#666;cursor:pointer">debug</summary><div style="font-size:10px;color:#999;background:#1a1a1a;padding:4px 6px;border-radius:4px;max-height:150px;overflow-y:auto;word-break:break-all;font-family:monospace">' + state.debugLog.map(l => '<div>' + l + '</div>').join('') + '</div></details>';
+  // Debug: show fetch log AND current results state
+  const rCount = Object.keys(state.results).length;
+  const rWon = Object.entries(state.results).filter(([k,v])=>v==="won").map(([k])=>k);
+  const rLost = Object.entries(state.results).filter(([k,v])=>v==="lost").map(([k])=>k);
+  const sunTest = R2_SUN[0] ? "R2_SUN[0].a=" + JSON.stringify(R2_SUN[0].a) + " winner=" + winnerOf(R2_SUN[0].a) : "no R2_SUN";
+  const dbgLines = [
+    ...(state.debugLog || []),
+    "---",
+    "results: " + rCount + " teams (" + rWon.length + "W " + rLost.length + "L)",
+    "won: " + rWon.join(", "),
+    "lost: " + rLost.join(", "),
+    sunTest
+  ];
+  html += '<details open style="margin:2px 8px"><summary style="font-size:10px;color:#666;cursor:pointer">debug (' + rCount + ' results)</summary><div style="font-size:10px;color:#999;background:#1a1a1a;padding:4px 6px;border-radius:4px;max-height:200px;overflow-y:auto;word-break:break-all;font-family:monospace">' + dbgLines.map(l => '<div>' + l + '</div>').join('') + '</div></details>';
 
   if (state.board) {
     // Board view
