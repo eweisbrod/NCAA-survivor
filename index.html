@@ -660,7 +660,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v3.0</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.11</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -694,7 +694,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v3.0</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.11</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
@@ -710,7 +710,7 @@ function render() {
   if (state.fetchTime) {
     html += '<div class="fetch-time">Scores: ' + state.fetchTime + '</div>';
   }
-  if (state.debugLog.length) html += '<div style="font-size:11px;color:#ffa;background:#333;padding:6px 8px;margin:4px 8px;border-radius:4px;max-height:200px;overflow-y:auto;word-break:break-all;font-family:monospace;border:1px solid #555">' + state.debugLog.map(l => '<div>' + l + '</div>').join('') + '</div>';
+  if (state.debugLog.length) html += '<details style="margin:2px 8px"><summary style="font-size:10px;color:#666;cursor:pointer">debug</summary><div style="font-size:10px;color:#999;background:#1a1a1a;padding:4px 6px;border-radius:4px;max-height:150px;overflow-y:auto;word-break:break-all;font-family:monospace">' + state.debugLog.map(l => '<div>' + l + '</div>').join('') + '</div></details>';
 
   if (state.board) {
     // Board view
@@ -795,9 +795,9 @@ function render() {
           meta = '<div class="matchup-meta">' + (g.r?'<span class="matchup-region" style="color:' + accent + '">' + g.r.toUpperCase() + '</span>':"<span></span>") + (g.t?'<span class="matchup-time">' + g.t + ' ET</span>':"") + '</div>';
         }
         html += '<div class="matchup-card" style="animation-delay:' + (gi * 0.02) + 's">' + meta + '<div class="matchup-row">';
-        html += teamBtn(hn, g.h.s, dayPick, usedTeams, accent, day.id, elim);
+        html += teamBtn(hn, g.h.s, dayPick, usedTeams, accent, day.id, elim, ln);
         html += '<div class="vs">VS</div>';
-        html += teamBtn(ln, g.l.s, dayPick, usedTeams, accent, day.id, elim);
+        html += teamBtn(ln, g.l.s, dayPick, usedTeams, accent, day.id, elim, hn);
         html += '</div></div>';
       });
     } else {
@@ -810,7 +810,7 @@ function render() {
   bindEvents(days);
 }
 
-function teamBtn(name, seed, dayPick, usedTeams, accent, dayId, elim) {
+function teamBtn(name, seed, dayPick, usedTeams, accent, dayId, elim, opponent) {
   if (name === "TBD") return '<div class="team-btn tbd">TBD</div>';
 
   const picked = dayPick === name;
@@ -818,6 +818,11 @@ function teamBtn(name, seed, dayPick, usedTeams, accent, dayId, elim) {
   const lost = state.results[name] === "lost";
   const won = state.results[name] === "won";
   const dis = used || lost || (elim && !picked);
+
+  // Only show W/L badge if this specific game is decided
+  // (at least one team in the matchup has lost, meaning the game was played)
+  const gameDecided = opponent && opponent !== "TBD" &&
+    (state.results[opponent] === "lost" || state.results[name] === "lost");
 
   let cls = "team-btn";
   if (picked) cls += " picked";
@@ -832,8 +837,8 @@ function teamBtn(name, seed, dayPick, usedTeams, accent, dayId, elim) {
   const nameClass = lost ? "team-name struck" : "team-name";
   let badge = "";
   if (picked) badge = '<span style="font-size:13px">\u2713</span>';
-  else if (won) badge = '<span style="font-size:9px;color:var(--green)">W</span>';
-  else if (lost) badge = '<span style="font-size:9px">\u2717</span>';
+  else if (gameDecided && won) badge = '<span style="font-size:9px;color:var(--green)">W</span>';
+  else if (gameDecided && lost) badge = '<span style="font-size:9px">\u2717</span>';
   else if (used) badge = '<span class="team-badge">USED</span>';
 
   return '<button class="' + cls + '" style="' + style + '" data-pick="' + esc(name) + '" data-day="' + dayId + '">' + seedHtml + '<span class="' + nameClass + '">' + esc(name) + '</span>' + badge + '</button>';
