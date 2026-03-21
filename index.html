@@ -464,37 +464,50 @@ async function fetchScores() {
   const dbg = [];
   function log(msg) { dbg.push(msg); console.log("[Scores]", msg); }
 
-  // Use ESPN API (supports CORS, unlike ncaa-api.henrygd.me)
-  // groups=100 filters to NCAA tournament games only
+  // ESPN API (supports CORS, unlike ncaa-api.henrygd.me)
   const ESPN = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard";
+
+  function processESPN(events) {
+    let matchCount = 0;
+    for (const ev of events) {
+      const comp = ev.competitions?.[0];
+      if (!comp) continue;
+      if (!ev.status?.type?.completed) continue;
+      const teams = comp.competitors || [];
+      const winner = teams.find(t => t.winner);
+      const loser = teams.find(t => !t.winner);
+      if (!winner || !loser) continue;
+      const wn = winner.team?.shortDisplayName || winner.team?.displayName || "";
+      const ln = loser.team?.shortDisplayName || loser.team?.displayName || "";
+      const mw = matchTeam(wn), ml = matchTeam(ln);
+      if (mw || ml) matchCount++;
+      if (mw && nr[mw] !== "won") { nr[mw] = "won"; changed = true; log("W " + mw); }
+      if (ml && nr[ml] !== "lost") { nr[ml] = "lost"; changed = true; log("L " + ml); }
+      for (const [key,val] of Object.entries(nf)) {
+        if (val === "TBD" && mw && key.split("/").includes(mw)) { nf[key] = mw; changed = true; }
+      }
+    }
+    return matchCount;
+  }
+
   for (const dt of dates) {
     const yyyymmdd = dt.replace(/-/g, "");
     try {
-      const resp = await fetch(ESPN + "?dates=" + yyyymmdd + "&groups=100&limit=100");
-      if (!resp.ok) { log(dt + ": HTTP " + resp.status); continue; }
-      const data = await resp.json();
-      const events = data?.events || [];
-      let matchCount = 0;
-      for (const ev of events) {
-        const comp = ev.competitions?.[0];
-        if (!comp) continue;
-        const statusDone = ev.status?.type?.completed;
-        if (!statusDone) continue;
-        const teams = comp.competitors || [];
-        const winner = teams.find(t => t.winner);
-        const loser = teams.find(t => !t.winner);
-        if (!winner || !loser) continue;
-        const wn = winner.team?.shortDisplayName || winner.team?.displayName || "";
-        const ln = loser.team?.shortDisplayName || loser.team?.displayName || "";
-        const mw = matchTeam(wn), ml = matchTeam(ln);
-        if (mw || ml) matchCount++;
-        if (mw && nr[mw] !== "won") { nr[mw] = "won"; changed = true; log("W " + mw); }
-        if (ml && nr[ml] !== "lost") { nr[ml] = "lost"; changed = true; log("L " + ml); }
-        for (const [key,val] of Object.entries(nf)) {
-          if (val === "TBD" && mw && key.split("/").includes(mw)) { nf[key] = mw; changed = true; }
-        }
+      // Try tournament-only first (groups=100), fallback to all games
+      let resp = await fetch(ESPN + "?dates=" + yyyymmdd + "&groups=100&limit=100");
+      let data, events;
+      if (resp.ok) {
+        data = await resp.json();
+        events = data?.events || [];
       }
-      log(dt + ": " + events.length + " events, " + matchCount + " matched");
+      if (!events || events.length === 0) {
+        resp = await fetch(ESPN + "?dates=" + yyyymmdd + "&limit=200");
+        if (!resp.ok) { log(dt + ": HTTP " + resp.status); continue; }
+        data = await resp.json();
+        events = data?.events || [];
+      }
+      const mc = processESPN(events);
+      log(dt + ": " + events.length + "ev " + mc + "m");
     } catch(e) { log(dt + " ERR: " + e.message); }
   }
   log("Done. changed=" + changed + " results=" + Object.keys(nr).length);
@@ -585,7 +598,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v2.5</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.6</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -619,7 +632,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.5</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.6</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
@@ -646,13 +659,15 @@ function render() {
     days.forEach(d => {
       html += '<div class="b-hdr"><div style="font-weight:700;font-size:9px">' + d.label + '</div><div style="font-size:7px;opacity:0.4">' + d.round + '</div></div>';
     });
+    const todayStr = new Date().toISOString().slice(0,10);
     state.players.forEach(p => {
       const pp = state.picks[p] || {};
       const el = isElim(p);
       html += '<div class="b-cell" style="font-weight:700;color:' + (el?"var(--red)":"var(--text)") + ';background:' + (el?"var(--red-dim)":"var(--surface)") + '">' + (el?"\u2620\uFE0F ":"") + esc(p) + ' <span style="font-size:8px;opacity:0.3">(' + winCount(p) + 'W)</span></div>';
       days.forEach(d => {
         const t = pp[d.id];
-        const r = t ? state.results[t] : null;
+        // Only show won/lost coloring for days that have started
+        const r = (t && d.date <= todayStr) ? state.results[t] : null;
         const bg = r==="won"?"var(--green-dim)":r==="lost"?"var(--red-dim)":"var(--surface)";
         const c = r==="won"?"var(--green)":r==="lost"?"var(--red)":"var(--text-dim)";
         const dec = r==="lost"?"text-decoration:line-through":"";
