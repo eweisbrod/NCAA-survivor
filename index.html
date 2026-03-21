@@ -294,9 +294,9 @@ const R2_SAT = [
   {a:["Saint Mary's","Texas A&M"],b:["Houston","Idaho"],r:"South"},
 ];
 const R2_SUN = [
-  {a:["Kentucky","Santa Clara"],b:["Virginia","Wright State"],r:"Midwest"},
+  {a:["Kentucky","Santa Clara"],b:["Iowa State","Tennessee St"],r:"Midwest"},
   {a:["Texas Tech","Akron"],b:["Alabama","Hofstra"],r:"Midwest"},
-  {a:["Iowa State","Tennessee St"],b:["Tennessee","$FF:SMU/Miami (OH)"],r:"Midwest"},
+  {a:["Tennessee","$FF:SMU/Miami (OH)"],b:["Virginia","Wright State"],r:"Midwest"},
   {a:["St John's","UNI"],b:["Kansas","Cal Baptist"],r:"East"},
   {a:["UCLA","UCF"],b:["UConn","Furman"],r:"East"},
   {a:["Arizona","LIU"],b:["Villanova","Utah State"],r:"West"},
@@ -305,16 +305,16 @@ const R2_SUN = [
 ];
 
 const S16_THU = [
-  {a:R2_SAT[2],b:R2_SAT[3],r:"South"},
-  {a:R2_SAT[7],b:R2_SUN[7],r:"South"},
-  {a:R2_SAT[4],b:R2_SAT[5],r:"West"},
-  {a:R2_SUN[5],b:R2_SUN[6],r:"West"},
+  {a:R2_SUN[7],b:R2_SAT[2],r:"South"},   // (1/8) vs (4/5)
+  {a:R2_SAT[3],b:R2_SAT[7],r:"South"},   // (3/6) vs (2/7)
+  {a:R2_SUN[5],b:R2_SAT[4],r:"West"},    // (1/8) vs (4/5)
+  {a:R2_SAT[5],b:R2_SUN[6],r:"West"},    // (3/6) vs (2/7)
 ];
 const S16_FRI = [
-  {a:R2_SAT[6],b:R2_SUN[0],r:"Midwest"},
-  {a:R2_SUN[1],b:R2_SUN[2],r:"Midwest"},
-  {a:R2_SAT[0],b:R2_SAT[1],r:"East"},
-  {a:R2_SUN[3],b:R2_SUN[4],r:"East"},
+  {a:R2_SAT[6],b:R2_SUN[1],r:"Midwest"}, // (1/8) vs (4/5)
+  {a:R2_SUN[2],b:R2_SUN[0],r:"Midwest"}, // (3/6) vs (2/7)
+  {a:R2_SAT[0],b:R2_SUN[3],r:"East"},    // (1/8) vs (4/5)
+  {a:R2_SAT[1],b:R2_SUN[4],r:"East"},    // (3/6) vs (2/7)
 ];
 
 const REGION_COLORS = { East:"var(--east)", West:"var(--west)", Midwest:"var(--midwest)", South:"var(--south)" };
@@ -647,8 +647,9 @@ function buildDays() {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function isElim(p) { return Object.values(state.picks[p]||{}).some(t => state.results[t]==="lost"); }
-function winCount(p) { return Object.values(state.picks[p]||{}).filter(t => state.results[t]==="won").length; }
+function pickResult(t) { const c = matchTeam(t); return c ? state.results[c] : state.results[t]; }
+function isElim(p) { return Object.values(state.picks[p]||{}).some(t => pickResult(t)==="lost"); }
+function winCount(p) { return Object.values(state.picks[p]||{}).filter(t => pickResult(t)==="won").length; }
 function esc(s) { const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 
 // ─── Render ──────────────────────────────────────────────────────────────────
@@ -753,7 +754,7 @@ function render() {
       days.forEach(d => {
         const t = pp[d.id];
         // Only show won/lost coloring for days that are over (strictly past)
-        const r = (t && d.date < todayStr) ? state.results[t] : null;
+        const r = (t && d.date < todayStr) ? pickResult(t) : null;
         const bg = r==="won"?"var(--green-dim)":r==="lost"?"var(--red-dim)":"var(--surface)";
         const c = r==="won"?"var(--green)":r==="lost"?"var(--red)":"var(--text-dim)";
         const dec = r==="lost"?"text-decoration:line-through":"";
@@ -766,7 +767,7 @@ function render() {
     html += '<div class="day-scroll">';
     days.forEach((d, i) => {
       const p = myPicks[d.id];
-      const r = p ? state.results[p] : null;
+      const r = p ? pickResult(p) : null;
       const act = i === state.dayIdx;
       const hasGames = d.games.some(g => g.h.n !== "TBD" || g.l.n !== "TBD");
       let cls = "day-tab";
@@ -793,7 +794,7 @@ function render() {
 
     // Pick banner
     if (dayPick) {
-      const r = state.results[dayPick];
+      const r = pickResult(dayPick);
       const bg = r==="lost"?"var(--red-dim)":r==="won"?"var(--green-dim)":"var(--yellow-dim)";
       const bc = r==="lost"?"rgba(255,82,82,0.15)":r==="won"?"rgba(61,220,132,0.12)":"rgba(255,204,68,0.1)";
       const c = r==="lost"?"var(--red)":r==="won"?"var(--green)":"var(--yellow)";
