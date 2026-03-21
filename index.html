@@ -498,21 +498,28 @@ async function fetchScores() {
 
   // Process ESPN results
   for (let i = 0; i < dates.length; i++) {
-    const events = espnResults[i]?.events || [];
-    let mc = 0;
+    const data = espnResults[i];
+    const events = data?.events || [];
+    let mc = 0, completed = 0, notDone = 0;
+    const unmatched = [];
     for (const ev of events) {
       const comp = ev.competitions?.[0];
-      if (!comp || !ev.status?.type?.completed) continue;
+      if (!comp) continue;
+      if (!ev.status?.type?.completed) { notDone++; continue; }
+      completed++;
       const teams = comp.competitors || [];
       const winner = teams.find(t => t.winner);
       const loser = teams.find(t => !t.winner);
       if (!winner || !loser) continue;
-      mc += recordResult(
-        winner.team?.shortDisplayName || winner.team?.displayName || "",
-        loser.team?.shortDisplayName || loser.team?.displayName || ""
-      );
+      const wn = winner.team?.shortDisplayName || winner.team?.displayName || "";
+      const ln = loser.team?.shortDisplayName || loser.team?.displayName || "";
+      const matched = recordResult(wn, ln);
+      mc += matched;
+      if (!matched) unmatched.push(wn + "/" + ln);
     }
-    log("espn " + dates[i] + " " + events.length + "ev " + mc + "m");
+    log("espn " + dates[i] + " " + events.length + "ev " + completed + "done " + notDone + "live " + mc + "m");
+    if (unmatched.length) log("  unmatched: " + unmatched.slice(0,5).join(", "));
+    if (events.length === 0) log("  (empty response - keys: " + Object.keys(data||{}).join(",") + ")");
   }
 
   // Process NCAA results (will skip teams already recorded by ESPN)
@@ -662,7 +669,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v2.12</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.13</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -696,7 +703,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.12</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.13</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
