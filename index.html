@@ -557,18 +557,59 @@ function buildDays() {
     h:{s:null,n:winnerOf(p.a.map(resolveFF))||"TBD"}, l:{s:null,n:winnerOf(p.b.map(resolveFF))||"TBD"}, r:p.r, t:""
   }));
 
-  // For Sweet 16+, show TBD placeholders
-  const placeholders = {
-    "thu-s16": 4, "fri-s16": 4, "sat-e8": 2, "sun-e8": 2, "sat-ff": 2, "mon-ch": 1
-  };
-  for (const [id, n] of Object.entries(placeholders)) {
-    const idx = days.findIndex(d => d.id === id);
-    if (idx >= 0 && days[idx].games.length === 0) {
-      days[idx].games = Array.from({length:n}, () => ({
-        h:{s:null,n:"TBD"}, l:{s:null,n:"TBD"}, r:"", t:""
-      }));
-    }
+  // Helper: find the winner of a game between two known teams.
+  // A winner is determined only when one has lost (meaning the game was played).
+  function gameWinner(a, b) {
+    if (a === "TBD" || b === "TBD") return "TBD";
+    if (state.results[a] === "lost") return b;
+    if (state.results[b] === "lost") return a;
+    return "TBD"; // game not yet played
   }
+
+  // R2 winner: first find R1 winners (the R2 participants), then find R2 winner
+  function r2Winner(r2p) {
+    const a = winnerOf(r2p.a) || "TBD";
+    const b = winnerOf(r2p.b) || "TBD";
+    return gameWinner(a, b);
+  }
+
+  // Sweet 16: each game pits two R2 winners
+  function buildRound(dayId, pairings) {
+    const di = days.findIndex(d => d.id === dayId);
+    if (di >= 0) days[di].games = pairings.map(p => ({
+      h:{s:null,n:p.a}, l:{s:null,n:p.b}, r:p.r, t:""
+    }));
+  }
+
+  const s16ThuResolved = S16_THU.map(p => ({a:r2Winner(p.a),b:r2Winner(p.b),r:p.r}));
+  const s16FriResolved = S16_FRI.map(p => ({a:r2Winner(p.a),b:r2Winner(p.b),r:p.r}));
+  buildRound("thu-s16", s16ThuResolved);
+  buildRound("fri-s16", s16FriResolved);
+
+  // Elite 8: winners of paired S16 games
+  function roundWinner(resolved, i) {
+    return gameWinner(resolved[i]?.a || "TBD", resolved[i]?.b || "TBD");
+  }
+  const e8SatResolved = [
+    {a:roundWinner(s16ThuResolved,0),b:roundWinner(s16ThuResolved,1),r:"South"},
+    {a:roundWinner(s16ThuResolved,2),b:roundWinner(s16ThuResolved,3),r:"West"},
+  ];
+  const e8SunResolved = [
+    {a:roundWinner(s16FriResolved,0),b:roundWinner(s16FriResolved,1),r:"Midwest"},
+    {a:roundWinner(s16FriResolved,2),b:roundWinner(s16FriResolved,3),r:"East"},
+  ];
+  buildRound("sat-e8", e8SatResolved);
+  buildRound("sun-e8", e8SunResolved);
+
+  // Final Four: regional champions
+  const ffResolved = [
+    {a:roundWinner(e8SatResolved,0),b:roundWinner(e8SunResolved,0),r:""},  // South vs Midwest
+    {a:roundWinner(e8SatResolved,1),b:roundWinner(e8SunResolved,1),r:""},  // West vs East
+  ];
+  buildRound("sat-ff", ffResolved);
+
+  // Championship
+  buildRound("mon-ch", [{a:roundWinner(ffResolved,0),b:roundWinner(ffResolved,1),r:""}]);
 
   return days;
 }
@@ -598,7 +639,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v2.6</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v2.7</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -632,7 +673,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.6</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.7</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
