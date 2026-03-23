@@ -318,6 +318,7 @@ const S16_FRI = [
 ];
 
 const REGION_COLORS = { East:"var(--east)", West:"var(--west)", Midwest:"var(--midwest)", South:"var(--south)" };
+const DAY_DATE = {}; DAYS.forEach(d => DAY_DATE[d.id] = d.date);
 
 const ALIASES = {
   "michigan st.":"Michigan State","michigan st":"Michigan State","michigan state":"Michigan State",
@@ -464,10 +465,11 @@ async function fetchScores() {
   const nr = { ...state.results };
   const nf = { ...state.ff };
 
-  function recordResult(wn, ln) {
+  function recordResult(wn, ln, date) {
     const mw = matchTeam(wn), ml = matchTeam(ln);
-    if (mw && nr[mw] !== "won") { nr[mw] = "won"; changed = true; log("W " + mw); }
-    if (ml && nr[ml] !== "lost") { nr[ml] = "lost"; changed = true; log("L " + ml); }
+    if (!nr[date]) nr[date] = {};
+    if (mw && nr[date][mw] !== "won") { nr[date][mw] = "won"; changed = true; log("W " + mw + " @" + date); }
+    if (ml && nr[date][ml] !== "lost") { nr[date][ml] = "lost"; changed = true; log("L " + ml + " @" + date); }
     for (const [key,val] of Object.entries(nf)) {
       if (val === "TBD" && mw && key.split("/").includes(mw)) { nf[key] = mw; changed = true; }
     }
@@ -513,7 +515,7 @@ async function fetchScores() {
       if (!winner || !loser) continue;
       const wn = winner.team?.shortDisplayName || winner.team?.displayName || "";
       const ln = loser.team?.shortDisplayName || loser.team?.displayName || "";
-      const matched = recordResult(wn, ln);
+      const matched = recordResult(wn, ln, dates[i]);
       mc += matched;
       if (!matched) unmatched.push(wn + "/" + ln);
     }
@@ -532,7 +534,7 @@ async function fetchScores() {
       const hs = parseInt(gm.home?.score||"0"), as_ = parseInt(gm.away?.score||"0");
       const wn = hs > as_ ? (gm.home?.names?.short||gm.home?.names?.full) : (gm.away?.names?.short||gm.away?.names?.full);
       const ln = hs > as_ ? (gm.away?.names?.short||gm.away?.names?.full) : (gm.home?.names?.short||gm.home?.names?.full);
-      mc += recordResult(wn, ln);
+      mc += recordResult(wn, ln, dates[i]);
     }
     log("ncaa " + dates[i] + " " + games.length + "g " + mc + "m");
   }
@@ -543,7 +545,10 @@ async function fetchScores() {
     // Firebase keys cannot contain . # $ / [ ]
     const fbKey = s => s.replace(/[.#$/\[\]]/g, "");
     const cleanResults = {};
-    for (const [k,v] of Object.entries(nr)) { if (v) cleanResults[fbKey(k)] = v; }
+    for (const [date, teams] of Object.entries(nr)) {
+      cleanResults[date] = {};
+      for (const [k,v] of Object.entries(teams)) { if (v) cleanResults[date][fbKey(k)] = v; }
+    }
     try { await db.ref("results").set(cleanResults); } catch(e) { log("FB results err: " + e.message); }
     const cleanFf = {};
     for (const [k,v] of Object.entries(nf)) { if (v) cleanFf[fbKey(k)] = v; }
@@ -561,10 +566,13 @@ function resolveFF(name) {
   return state.ff[name.slice(4)] || "TBD";
 }
 
+// Per-date result helpers
+function teamAdvanced(t) { return Object.values(state.results).some(dr => dr[t] === "won"); }
+function teamEliminated(t) { return Object.values(state.results).some(dr => dr[t] === "lost"); }
+
 function winnerOf(pair) {
   const resolved = pair.map(resolveFF);
-  const w = resolved.find(t => state.results[t] === "won") || null;
-  return w;
+  return resolved.find(t => teamAdvanced(t)) || null;
 }
 
 function buildDays() {
@@ -593,8 +601,8 @@ function buildDays() {
   // A winner is determined only when one has lost (meaning the game was played).
   function gameWinner(a, b) {
     if (a === "TBD" || b === "TBD") return "TBD";
-    if (state.results[a] === "lost") return b;
-    if (state.results[b] === "lost") return a;
+    if (teamEliminated(a)) return b;
+    if (teamEliminated(b)) return a;
     return "TBD"; // game not yet played
   }
 
@@ -647,9 +655,13 @@ function buildDays() {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function pickResult(t) { const c = matchTeam(t); return c ? state.results[c] : state.results[t]; }
-function isElim(p) { return Object.values(state.picks[p]||{}).some(t => pickResult(t)==="lost"); }
-function winCount(p) { return Object.values(state.picks[p]||{}).filter(t => pickResult(t)==="won").length; }
+function pickResult(t, dayId) {
+  const c = matchTeam(t) || t;
+  const date = DAY_DATE[dayId];
+  return date ? (state.results[date]?.[c] || null) : null;
+}
+function isElim(p) { return Object.entries(state.picks[p]||{}).some(([dayId, t]) => pickResult(t, dayId)==="lost"); }
+function winCount(p) { return Object.entries(state.picks[p]||{}).filter(([dayId, t]) => pickResult(t, dayId)==="won").length; }
 function esc(s) { const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 
 // ─── Render ──────────────────────────────────────────────────────────────────
@@ -672,7 +684,7 @@ function render() {
         '<div class="login-card">' +
           '<div class="login-ball">\u{1F3C0}</div>' +
           '<h1 class="login-title">Survivor Pool</h1>' +
-          '<div class="login-sub">March Madness 2026 &middot; v2.15</div>' +
+          '<div class="login-sub">March Madness 2026 &middot; v3.0</div>' +
           '<div class="login-box">' +
             '<div class="login-label">Enter your name to join</div>' +
             '<input class="login-input" id="nameInput" placeholder="Your name..." autofocus>' +
@@ -706,7 +718,7 @@ function render() {
     '<div class="header-left">' +
       '<span style="font-size:20px">\u{1F3C0}</span>' +
       '<div>' +
-        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v2.15</span></div>' +
+        '<div class="header-title">SURVIVOR POOL <span style="font-size:8px;opacity:0.3;letter-spacing:1px">v3.0</span></div>' +
         '<div class="header-sub">' + esc(state.player) +
           (elim ? ' <span style="color:var(--red)">\u2620\uFE0F OUT</span>' : "") +
           (!elim && w > 0 ? ' <span style="color:var(--green)">\u{1F525}' + w + '</span>' : "") +
@@ -723,19 +735,18 @@ function render() {
     html += '<div class="fetch-time">Scores: ' + state.fetchTime + '</div>';
   }
   // Debug: show fetch log AND current results state
-  const rCount = Object.keys(state.results).length;
-  const rWon = Object.entries(state.results).filter(([k,v])=>v==="won").map(([k])=>k);
-  const rLost = Object.entries(state.results).filter(([k,v])=>v==="lost").map(([k])=>k);
-  const sunTest = R2_SUN[0] ? "R2_SUN[0].a=" + JSON.stringify(R2_SUN[0].a) + " winner=" + winnerOf(R2_SUN[0].a) : "no R2_SUN";
+  const allTeamResults = {};
+  for (const [date, teams] of Object.entries(state.results)) {
+    for (const [t, v] of Object.entries(teams || {})) allTeamResults[t] = (allTeamResults[t]||"") + " " + date.slice(5) + ":" + v;
+  }
+  const rCount = Object.keys(allTeamResults).length;
   const dbgLines = [
     ...(state.debugLog || []),
     "---",
-    "results: " + rCount + " teams (" + rWon.length + "W " + rLost.length + "L)",
-    "won: " + rWon.join(", "),
-    "lost: " + rLost.join(", "),
-    sunTest
+    "teams tracked: " + rCount,
+    ...Object.entries(allTeamResults).map(([t,v]) => t + v)
   ];
-  html += '<details style="margin:2px 8px"><summary style="font-size:10px;color:#666;cursor:pointer">debug (' + rCount + ' results)</summary><div style="font-size:10px;color:#999;background:#1a1a1a;padding:4px 6px;border-radius:4px;max-height:200px;overflow-y:auto;word-break:break-all;font-family:monospace">' + dbgLines.map(l => '<div>' + l + '</div>').join('') + '</div></details>';
+  html += '<details style="margin:2px 8px"><summary style="font-size:10px;color:#666;cursor:pointer">debug (' + rCount + ' teams)</summary><div style="font-size:10px;color:#999;background:#1a1a1a;padding:4px 6px;border-radius:4px;max-height:200px;overflow-y:auto;word-break:break-all;font-family:monospace">' + dbgLines.map(l => '<div>' + l + '</div>').join('') + '</div></details>';
 
   if (state.board) {
     // Board view
@@ -754,7 +765,7 @@ function render() {
       days.forEach(d => {
         const t = pp[d.id];
         // Only show won/lost coloring for days that are over (strictly past)
-        const r = (t && d.date < todayStr) ? pickResult(t) : null;
+        const r = (t && d.date < todayStr) ? pickResult(t, d.id) : null;
         const bg = r==="won"?"var(--green-dim)":r==="lost"?"var(--red-dim)":"var(--surface)";
         const c = r==="won"?"var(--green)":r==="lost"?"var(--red)":"var(--text-dim)";
         const dec = r==="lost"?"text-decoration:line-through":"";
@@ -767,7 +778,7 @@ function render() {
     html += '<div class="day-scroll">';
     days.forEach((d, i) => {
       const p = myPicks[d.id];
-      const r = p ? pickResult(p) : null;
+      const r = p ? pickResult(p, d.id) : null;
       const act = i === state.dayIdx;
       const hasGames = d.games.some(g => g.h.n !== "TBD" || g.l.n !== "TBD");
       let cls = "day-tab";
@@ -794,7 +805,7 @@ function render() {
 
     // Pick banner
     if (dayPick) {
-      const r = pickResult(dayPick);
+      const r = pickResult(dayPick, day.id);
       const bg = r==="lost"?"var(--red-dim)":r==="won"?"var(--green-dim)":"var(--yellow-dim)";
       const bc = r==="lost"?"rgba(255,82,82,0.15)":r==="won"?"rgba(61,220,132,0.12)":"rgba(255,204,68,0.1)";
       const c = r==="lost"?"var(--red)":r==="won"?"var(--green)":"var(--yellow)";
@@ -840,14 +851,17 @@ function teamBtn(name, seed, dayPick, usedTeams, accent, dayId, elim, opponent) 
 
   const picked = dayPick === name;
   const used = usedTeams.includes(name) && !picked;
-  const lost = state.results[name] === "lost";
-  const won = state.results[name] === "won";
-  const dis = used || lost || (elim && !picked);
+  const date = DAY_DATE[dayId];
+  const wonToday = state.results[date]?.[name] === "won";
+  const lostToday = state.results[date]?.[name] === "lost";
+  const eliminated = teamEliminated(name);
+  const lost = lostToday || eliminated;
+  const won = wonToday;
+  const dis = used || eliminated || (elim && !picked);
 
-  // Only show W/L badge if this specific game is decided
-  // (at least one team in the matchup has lost, meaning the game was played)
+  // Only show W/L badge if this specific game is decided on this date
   const gameDecided = opponent && opponent !== "TBD" &&
-    (state.results[opponent] === "lost" || state.results[name] === "lost");
+    (state.results[date]?.[opponent] === "lost" || lostToday);
 
   let cls = "team-btn";
   if (picked) cls += " picked";
@@ -888,7 +902,7 @@ function bindEvents(days) {
       const myPicks = state.picks[state.player] || {};
       const usedTeams = Object.values(myPicks);
       const dayPick = myPicks[dayId];
-      if (state.results[team] === "lost") return;
+      if (teamEliminated(team)) return;
       if (usedTeams.includes(team) && dayPick !== team) return;
       makePick(team, dayId);
     });
